@@ -1,0 +1,39 @@
+name: Verify
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+env:
+  NODE_VERSION: '21.x'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Setup .yarnrc.yml
+        run: |
+          # Need to use Yarn2+ to prevent issue with private artifact being used.
+          # I prevents error: https://npm.pkg.github.com/download/@zawadz88/shared-analytics-library/X.Y.Z/ABC: Request failed "401 Unauthorized"
+          corepack enable
+          yarn set version 4.3.0
+          yarn config set npmScopes.zawadz88.npmRegistryServer "https://npm.pkg.github.com"
+          yarn config set npmScopes.zawadz88.npmAlwaysAuth true
+          yarn config set npmScopes.zawadz88.npmAuthToken $NPM_AUTH_TOKEN
+        env:
+          NPM_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build
+        run: |
+          yarn install --immutable
+          yarn webpack build --mode production
